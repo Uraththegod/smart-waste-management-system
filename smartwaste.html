@@ -1,1 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Waste Management</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root {
+  --deep:    #1b4332;
+  --mid:     #2d6a4f;
+  --accent:  #40916c;
+  --light:   #74c69d;
+  --pale:    #d8f3dc;
+  --white:   #ffffff;
+  --bg:      #edf7f0;
+  --muted:   #6c757d;
+  --danger:  #e74c3c;
+  --shadow:  0 8px 32px rgba(0,0,0,.12);
+  --r:       16px;
+}
 
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; font-family:'Outfit',sans-serif; }
+
+body {
+  background: var(--bg);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 24px 16px 40px;
+}
+
+/* ── PAGES ── */
+.page { width:100%; max-width:460px; }
+.dash-page { width:100%; max-width:620px; }
+
+/* ── AUTH CARD ── */
+.auth-card {
+  background: var(--white);
+  border-radius: 28px;
+  padding: 42px 36px;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+.auth-card::after {
+  content: '';
+  position: absolute;
+  top: -70px; right: -70px;
+  width: 200px; height: 200px;
+  background: var(--pale);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.logo-wrap { text-align:center; margin-bottom:22px; }
+.logo-icon {
+  width: 72px; height: 72px;
+  background: linear-gradient(135deg, var(--deep), var(--accent));
+  border-radius: 22px;
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  font-size: 38px; color: white;
+  box-shadow: 0 4px 18px rgba(64,145,108,.45);
+}
+h1 { font-size:26px; font-weight:800; color:var(--deep); text-align:center; margin-bottom:5px; }
+.subtitle { text-align:center; color:var(--muted); font-size:14px; margin-bottom:28px; }
+
+/* ── FORM ELEMENTS ── */
+.fg { margin-bottom:14px; }
+.fg label { display:block; font-size:13px; font-weight:600; color:var(--deep); margin-bottom:6px; }
+input, textarea, select {
+  width:100%; padding:12px 16px;
+  border:2px solid #e2e8f0; border-radius:12px;
+  font-size:15px; font-family:'Outfit',sans-serif;
+  transition:border-color .2s, box-shadow .2s; outline:none; color:#1a202c;
+}
+input:focus, textarea:focus, select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(64,145,108,.15); }
+textarea { resize:vertical; min-height:90px; }
+
+/* ── BUTTONS ── */
+.btn {
+  width:100%; padding:14px; border:none; border-radius:12px;
+  font-size:15px; font-weight:600; font-family:'Outfit',sans-serif;
+  cursor:pointer; transition:all .2s;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--mid), var(--accent));
+  color: white; margin-top:8px;
+}
+.btn-primary:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(64,145,108,.4); }
+.btn-primary:active { transform:translateY(0); }
+.btn-danger { background:#fee2e2; color:var(--danger); margin-top:10px; }
+.btn-danger:hover { background:#fecaca; }
+
+.btn-gps {
+  display:inline-flex; align-items:center; gap:6px;
+  background:var(--pale); color:var(--deep);
+  border:2px solid var(--light);
+  padding:10px 14px; border-radius:10px;
+  font-size:13px; font-weight:600; font-family:'Outfit',sans-serif;
+  cursor:pointer; transition:all .2s; white-space:nowrap;
+}
+.btn-gps:hover { background:var(--light); border-color:var(--accent); }
+.btn-gps:disabled { opacity:.6; cursor:not-allowed; }
+
+.link-row { text-align:center; margin-top:20px; font-size:14px; color:var(--muted); }
+.link-row span { color:var(--accent); cursor:pointer; font-weight:600; }
+.link-row span:hover { text-decoration:underline; }
+
+/* ── DASHBOARD ── */
+.dash-header {
+  background: linear-gradient(135deg, var(--deep), var(--mid));
+  color: white; padding:20px 24px; border-radius:22px;
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:18px;
+}
+.dash-header h2 { font-size:21px; font-weight:700; }
+.dash-header p { font-size:13px; opacity:.75; margin-top:2px; }
+.dash-logo { font-size:36px; }
+
+/* ── MAP CARD ── */
+.map-card {
+  background:var(--white); border-radius:20px;
+  overflow:hidden; box-shadow:var(--shadow); margin-bottom:18px;
+}
+.map-card-hdr {
+  padding:14px 20px 10px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.map-card-hdr h3 { font-size:16px; font-weight:700; color:var(--deep); }
+.map-hint {
+  font-size:12px; color:var(--muted);
+  background:var(--pale); padding:4px 10px; border-radius:20px;
+}
+#map { width:100%; height:300px; }
+
+/* ── REPORT FORM ── */
+.section-card {
+  background:var(--white); border-radius:20px;
+  padding:20px 24px; box-shadow:var(--shadow); margin-bottom:18px;
+}
+.section-card h3 { font-size:17px; font-weight:700; color:var(--deep); margin-bottom:16px; }
+
+.loc-row { display:flex; gap:10px; align-items:flex-start; }
+.loc-row input { flex:1; }
+
+.coords-badge {
+  display:inline-flex; align-items:center; gap:6px;
+  background:var(--pale); color:var(--mid);
+  font-size:12px; font-weight:500;
+  padding:5px 12px; border-radius:8px; margin-top:8px;
+}
+
+/* ── REPORTS LIST ── */
+.report-item {
+  padding:14px; background:var(--bg);
+  border-radius:12px; margin-bottom:10px;
+  border-left:4px solid var(--accent);
+  animation: fadeUp .3s ease;
+}
+@keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+.ri-header { display:flex; align-items:center; justify-content:space-between; }
+.ri-type {
+  font-size:12px; font-weight:600; background:var(--pale);
+  color:var(--mid); padding:3px 10px; border-radius:20px;
+}
+.ri-loc { font-size:14px; font-weight:600; color:var(--deep); margin-top:5px; }
+.ri-desc { font-size:13px; color:var(--muted); margin-top:3px; }
+.ri-meta { font-size:11px; color:var(--accent); margin-top:4px; }
+.no-reports { text-align:center; color:var(--muted); font-size:14px; padding:24px 0; }
+
+/* ── TOAST ── */
+.toast {
+  position:fixed; bottom:20px; left:50%;
+  transform:translateX(-50%) translateY(100px);
+  background:var(--deep); color:white;
+  padding:12px 22px; border-radius:14px;
+  font-size:14px; font-weight:500;
+  transition:transform .35s cubic-bezier(.34,1.56,.64,1);
+  z-index:9999; box-shadow:0 6px 24px rgba(0,0,0,.25);
+  pointer-events:none;
+}
+.toast.show { transform:translateX(-50%) translateY(0); }
+
+/* ── SPINNER ── */
+.spinner {
+  width:15px; height:15px;
+  border:2px solid rgba(255,255,255,.3);
+  border-top-color:white; border-radius:50%;
+  animation:spin .7s linear infinite; display:inline-block;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.hidden { display:none !important; }
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════ LOGIN ══════════════ -->
+<div class="page" id="loginPage">
+  <div class="auth-card">
+    <div class="logo-wrap"><div class="logo-icon">♻</div></div>
+    <h1>Smart Waste</h1>
+    <p class="subtitle">Clean Community, Healthy Living</p>
+
+    <div class="fg">
+      <label>Email Address</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com">
+    </div>
+    <div class="fg">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••"
+             onkeydown="if(event.key==='Enter')login()">
+    </div>
+    <button class="btn btn-primary" onclick="login()">Login</button>
+    <p class="link-row">No account? <span onclick="showRegister()">Create one</span></p>
+  </div>
+</div>
+
+<!-- ══════════════ REGISTER ══════════════ -->
+<div class="page hidden" id="registerPage">
+  <div class="auth-card">
+    <div class="logo-wrap"><div class="logo-icon">♻</div></div>
+    <h1>Create Account</h1>
+    <p class="subtitle">Join the clean community</p>
+
+    <div class="fg">
+      <label>Full Name</label>
+      <input type="text" id="regName" placeholder="Your name">
+    </div>
+    <div class="fg">
+      <label>Email Address</label>
+      <input type="email" id="regEmail" placeholder="you@example.com">
+    </div>
+    <div class="fg">
+      <label>Password</label>
+      <input type="password" id="regPassword" placeholder="Min. 6 characters"
+             onkeydown="if(event.key==='Enter')register()">
+    </div>
+    <button class="btn btn-primary" onclick="register()">Create Account</button>
+    <p class="link-row">Already have one? <span onclick="showLogin()">Login</span></p>
+  </div>
+</div>
+
+<!-- ══════════════ DASHBOARD ══════════════ -->
+<div class="dash-page hidden" id="dashboardPage">
+
+  <div class="dash-header">
+    <div>
+      <h2>Hello, <span id="userName"></span> 👋</h2>
+      <p>Report waste issues in your area</p>
+    </div>
+    <span class="dash-logo">♻</span>
+  </div>
+
+  <!-- MAP -->
+  <div class="map-card">
+    <div class="map-card-hdr">
+      <h3>📍 Issue Map</h3>
+      <span class="map-hint">Tap map to pin location</span>
+    </div>
+    <div id="map"></div>
+  </div>
+
+  <!-- REPORT FORM -->
+  <div class="section-card">
+    <h3>🗑️ Report a Waste Issue</h3>
+
+    <div class="fg">
+      <label>Location</label>
+      <div class="loc-row">
+        <input type="text" id="location" placeholder="Click map or use GPS…">
+        <button class="btn-gps" id="gpsBtn" onclick="getMyLocation()">
+          📡 My Location
+        </button>
+      </div>
+      <div class="coords-badge hidden" id="coordsBadge">
+        📌 <span id="coordsText"></span>
+      </div>
+    </div>
+
+    <div class="fg">
+      <label>Issue Type</label>
+      <select id="issueType">
+        <option>Illegal Dumping</option>
+        <option>Overflowing Bin</option>
+        <option>Littering</option>
+        <option>Hazardous Waste</option>
+        <option>Other</option>
+      </select>
+    </div>
+
+    <div class="fg">
+      <label>Description</label>
+      <textarea id="description" placeholder="Describe the waste issue…"></textarea>
+    </div>
+
+    <button class="btn btn-primary" onclick="submitReport()">Submit Report</button>
+  </div>
+
+  <!-- REPORTS LIST -->
+  <div class="section-card">
+    <h3>📋 My Reports (<span id="reportCount">0</span>)</h3>
+    <div id="reportsList"><p class="no-reports">No reports yet. Pin a location and submit one!</p></div>
+  </div>
+
+  <button class="btn btn-danger" onclick="logout()">Logout</button>
+  <br>
+
+</div><!-- /dash-page -->
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ═══════════════════════════════════════
+   STATE
+═══════════════════════════════════════ */
+let map = null;
+let pinMarker = null;      // current selection pin
+let selectedLat = null;
+let selectedLng = null;
+let reports = JSON.parse(localStorage.getItem('waste_reports') || '[]');
+
+/* ═══════════════════════════════════════
+   TOAST
+═══════════════════════════════════════ */
+function toast(msg, ms = 3200) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), ms);
+}
+
+/* ═══════════════════════════════════════
+   AUTH
+═══════════════════════════════════════ */
+function showRegister() {
+  document.getElementById('loginPage').classList.add('hidden');
+  document.getElementById('registerPage').classList.remove('hidden');
+}
+function showLogin() {
+  document.getElementById('registerPage').classList.add('hidden');
+  document.getElementById('loginPage').classList.remove('hidden');
+}
+
+function register() {
+  const name     = document.getElementById('regName').value.trim();
+  const email    = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPassword').value;
+  if (!name || !email || !password)    { toast('⚠️ Please fill all fields'); return; }
+  if (password.length < 6)             { toast('⚠️ Password must be 6+ characters'); return; }
+  if (!/\S+@\S+\.\S+/.test(email))    { toast('⚠️ Invalid email address'); return; }
+  localStorage.setItem(email, JSON.stringify({ name, email, password }));
+  toast('✅ Account created! Please login.');
+  showLogin();
+}
+
+function login() {
+  const email    = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const user     = JSON.parse(localStorage.getItem(email) || 'null');
+  if (user && user.password === password) {
+    document.getElementById('loginPage').classList.add('hidden');
+    document.getElementById('dashboardPage').classList.remove('hidden');
+    document.getElementById('userName').textContent = user.name.split(' ')[0];
+    initMap();
+    renderReports();
+  } else {
+    toast('❌ Invalid email or password');
+  }
+}
+
+function logout() {
+  document.getElementById('dashboardPage').classList.add('hidden');
+  document.getElementById('loginPage').classList.remove('hidden');
+  selectedLat = selectedLng = null;
+  if (map) { map.remove(); map = null; }
+  pinMarker = null;
+}
+
+/* ═══════════════════════════════════════
+   MAP — Custom Icons
+═══════════════════════════════════════ */
+function makePinIcon(color = '#2d6a4f') {
+  return L.divIcon({
+    html: `<div style="
+      width:28px;height:36px;position:relative;
+    "><div style="
+      width:28px;height:28px;border-radius:50% 50% 50% 0;
+      transform:rotate(-45deg);
+      background:${color};
+      border:3px solid white;
+      box-shadow:0 3px 10px rgba(0,0,0,.35);
+    "></div></div>`,
+    iconSize: [28, 36],
+    iconAnchor: [14, 36],
+    popupAnchor: [0, -36],
+    className: ''
+  });
+}
+
+function makeReportIcon() {
+  return L.divIcon({
+    html: `<div style="
+      width:28px;height:28px;border-radius:50%;
+      background:#e74c3c;
+      border:3px solid white;
+      box-shadow:0 2px 8px rgba(0,0,0,.3);
+      display:flex;align-items:center;justify-content:center;
+      font-size:13px;line-height:1;
+    ">🗑</div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+    popupAnchor: [0, -14],
+    className: ''
+  });
+}
+
+/* ═══════════════════════════════════════
+   MAP — Init
+═══════════════════════════════════════ */
+function initMap() {
+  if (map) return;
+
+  // Default: Accra, Ghana
+  map = L.map('map', { zoomControl: true }).setView([5.6037, -0.1870], 13);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19
+  }).addTo(map);
+
+  // Tap/click on map → set pin
+  map.on('click', function (e) {
+    placePin(e.latlng.lat, e.latlng.lng);
+    reverseGeocode(e.latlng.lat, e.latlng.lng);
+  });
+
+  // Render existing report markers
+  reports.forEach(addReportMarker);
+
+  // Silently try to zoom to user
+  autoLocate();
+}
+
+function autoLocate() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    pos => map.setView([pos.coords.latitude, pos.coords.longitude], 15),
+    () => {} // fail silently — no need to bother the user
+  );
+}
+
+/* ═══════════════════════════════════════
+   MAP — Pin
+═══════════════════════════════════════ */
+function placePin(lat, lng) {
+  selectedLat = lat;
+  selectedLng = lng;
+
+  if (pinMarker) map.removeLayer(pinMarker);
+  pinMarker = L.marker([lat, lng], { icon: makePinIcon() })
+    .addTo(map)
+    .bindPopup('Selected location')
+    .openPopup();
+
+  document.getElementById('coordsBadge').classList.remove('hidden');
+  document.getElementById('coordsText').textContent =
+    `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+}
+
+/* ═══════════════════════════════════════
+   MAP — Reverse Geocode (Nominatim)
+═══════════════════════════════════════ */
+function reverseGeocode(lat, lng) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16&addressdetails=1`;
+  fetch(url, { headers: { 'Accept-Language': 'en' } })
+    .then(r => r.json())
+    .then(d => {
+      if (d.display_name) {
+        // Build a short, readable label
+        const a = d.address || {};
+        const parts = [
+          a.road || a.pedestrian || a.footway,
+          a.suburb || a.neighbourhood || a.quarter,
+          a.city || a.town || a.village || a.county
+        ].filter(Boolean);
+        document.getElementById('location').value =
+          parts.length ? parts.join(', ') : d.display_name.split(',').slice(0, 3).join(',').trim();
+      }
+    })
+    .catch(() => {
+      document.getElementById('location').value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    });
+}
+
+/* ═══════════════════════════════════════
+   GEOLOCATION
+═══════════════════════════════════════ */
+function getMyLocation() {
+  if (!navigator.geolocation) { toast('❌ Geolocation not supported by your browser'); return; }
+
+  const btn = document.getElementById('gpsBtn');
+  btn.innerHTML = '<span class="spinner"></span> Locating…';
+  btn.disabled = true;
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      map.setView([lat, lng], 16);
+      placePin(lat, lng);
+      reverseGeocode(lat, lng);
+      btn.innerHTML = '📡 My Location';
+      btn.disabled = false;
+      toast('📍 Location found!');
+    },
+    err => {
+      btn.innerHTML = '📡 My Location';
+      btn.disabled = false;
+      const msgs = {
+        1: '❌ Permission denied — please allow location access.',
+        2: '❌ Position unavailable. Try clicking the map.',
+        3: '❌ Location request timed out.'
+      };
+      toast(msgs[err.code] || '❌ Could not get location. Tap the map instead.');
+    },
+    { timeout: 10000, maximumAge: 60000, enableHighAccuracy: true }
+  );
+}
+
+/* ═══════════════════════════════════════
+   REPORTS
+═══════════════════════════════════════ */
+function addReportMarker(report) {
+  if (!map || !report.lat || !report.lng) return;
+  L.marker([report.lat, report.lng], { icon: makeReportIcon() })
+    .addTo(map)
+    .bindPopup(`
+      <div style="font-family:'Outfit',sans-serif;min-width:160px">
+        <div style="font-weight:700;font-size:14px;color:#1b4332">${report.type}</div>
+        <div style="font-size:13px;color:#444;margin-top:4px">${report.location}</div>
+        <div style="font-size:12px;color:#666;margin-top:3px">${report.description}</div>
+        <div style="font-size:11px;color:#40916c;margin-top:4px">📅 ${report.date}</div>
+      </div>
+    `);
+}
+
+function submitReport() {
+  const location    = document.getElementById('location').value.trim();
+  const description = document.getElementById('description').value.trim();
+  const type        = document.getElementById('issueType').value;
+
+  if (!location || !description) { toast('⚠️ Please fill in location and description'); return; }
+  if (!selectedLat || !selectedLng) { toast('📍 Please pin a location on the map or use GPS'); return; }
+
+  const report = {
+    id: Date.now(),
+    location, description, type,
+    lat: selectedLat, lng: selectedLng,
+    date: new Date().toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })
+  };
+
+  reports.unshift(report);
+  localStorage.setItem('waste_reports', JSON.stringify(reports));
+
+  addReportMarker(report);
+  renderReports();
+
+  // Reset form
+  document.getElementById('location').value = '';
+  document.getElementById('description').value = '';
+  document.getElementById('coordsBadge').classList.add('hidden');
+  if (pinMarker) { map.removeLayer(pinMarker); pinMarker = null; }
+  selectedLat = selectedLng = null;
+
+  toast('✅ Report submitted! Marker added to map.');
+}
+
+function renderReports() {
+  const list  = document.getElementById('reportsList');
+  const count = document.getElementById('reportCount');
+  count.textContent = reports.length;
+
+  if (!reports.length) {
+    list.innerHTML = '<p class="no-reports">No reports yet. Pin a location and submit one!</p>';
+    return;
+  }
+
+  const typeIcon = {
+    'Illegal Dumping': '🚯',
+    'Overflowing Bin': '🗑️',
+    'Littering': '🍂',
+    'Hazardous Waste': '☢️',
+    'Other': '📌'
+  };
+
+  list.innerHTML = reports.map(r => `
+    <div class="report-item">
+      <div class="ri-header">
+        <span style="font-size:18px">${typeIcon[r.type] || '📌'}</span>
+        <span class="ri-type">${r.type}</span>
+      </div>
+      <div class="ri-loc">${r.location}</div>
+      <div class="ri-desc">${r.description}</div>
+      <div class="ri-meta">🗓 ${r.date} &nbsp;·&nbsp; 🌍 ${r.lat.toFixed(4)}, ${r.lng.toFixed(4)}</div>
+    </div>
+  `).join('');
+}
+</script>
+</body>
+</html>
